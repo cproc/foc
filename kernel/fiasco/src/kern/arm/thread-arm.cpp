@@ -619,6 +619,10 @@ Thread::condition_valid(Unsigned32 insn, Unsigned32 psr)
 PUBLIC static inline template<typename T>
 T Thread::peek_user(T const *adr) { return *adr; }
 
+IMPLEMENT inline
+void Thread::user_single_step(bool)
+{}
+
 // ------------------------------------------------------------------------
 IMPLEMENTATION [arm && armv6plus]:
 
