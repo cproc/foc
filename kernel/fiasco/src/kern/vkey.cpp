@@ -31,6 +31,7 @@ IMPLEMENTATION [debug && serial && !ux]:
 #include "globals.h"
 #include "kernel_console.h"
 #include "keycodes.h"
+#include "koptions.h"
 
 static Vkey::Echo_type vkey_echo;
 static char     vkey_buffer[256];
@@ -111,7 +112,7 @@ Vkey::check_()
       if (c == -1)
 	break;
 
-      if (c == KEY_ESC)
+      if ((c == KEY_ESC) && (Koptions::o()->opt(Koptions::F_serial_esc)))
 	{
 	  ret = 0;  // break into kernel debugger
 	  break;
