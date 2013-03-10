@@ -861,5 +861,5 @@ Thread::user_single_step(bool enable)
   if (!Config::user_single_step)
     return;
 
-  regs()->flags(enable ? user_flags() | EFLAGS_TF : user_flags() & ~EFLAGS_TF);
+  regs()->flags(enable ? regs()->flags() | EFLAGS_TF : regs()->flags() & ~EFLAGS_TF);
 }
