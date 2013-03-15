@@ -1057,7 +1057,7 @@ Jdb::enter_jdb(Jdb_entry_frame *e, unsigned cpu)
 
   Jdb::current_cpu = cpu;
   // check for int $3 user debugging interface
-  if (foreach_cpu(&handle_user_request, true))
+  if (foreach_cpu(&handle_user_request, false))
     {
       close_debug_console(cpu);
       leave_trap_handler(cpu);
