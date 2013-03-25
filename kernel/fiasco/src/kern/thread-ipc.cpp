@@ -226,6 +226,11 @@ Thread::handle_page_fault_pager(Thread_ptr const &_pager,
                                 Address pfa, Mword error_code,
                                 L4_msg_tag::Protocol protocol)
 {
+int dummy;
+	  printf("Thread::handle_page_fault_pager(): this = %p, thread id = %lx, &_magic = %p, &dummy = %lx\n", this, dbg_id(), &_magic, &dummy);
+	  if ((unsigned long)&dummy < ((unsigned long)&_magic + 0x200))
+		  kdb_ke("danger of stack overflow");
+
 #ifndef NDEBUG
   // do not handle user space page faults from kernel mode if we're
   // already handling a request
@@ -251,7 +256,6 @@ Thread::handle_page_fault_pager(Thread_ptr const &_pager,
 	   ", errorcode=" L4_PTR_FMT ") to %lx (pc=%lx)\n",
 	   current_cpu(), dbg_id(), pfa, error_code,
            _pager.raw(), regs()->ip());
-
 
       LOG_TRACE("Page fault invalid pager", "pf", this, Log_pf_invalid,
                 l->cap_idx = _pager.raw();
@@ -314,6 +318,7 @@ Thread::handle_page_fault_pager(Thread_ptr const &_pager,
   saved_utcb_fields.restore(utcb);
   Mem::barrier();
   vcpu_restore_irqs(vcpu_irqs);
+  printf("Thread::handle_page_fault_pager(): this = %p, success = %d\n", this, success);
   return success;
 }
 
@@ -957,7 +962,7 @@ Thread::transfer_msg_items(L4_msg_tag const &tag, Thread* snd, Utcb *snd_utcb,
 
 	  if (!try_transfer_local_id(buf, sfp, rcv_word, snd, rcv))
 	    {
-	      // we need to do a real mapping¿
+	      // we need to do a real mappingï¿½
 
 	      // diminish when sending via restricted ipc gates
 	      if (sfp.type() == L4_fpage::Obj)

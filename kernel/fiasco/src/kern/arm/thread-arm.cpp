@@ -370,6 +370,8 @@ Thread::Thread()
     _exc_handler(Thread_ptr::Invalid),
     _del_observer(0)
 {
+	printf("Thread(): this = %p, thread id = %lx, _kernel_sp = %lx\n", this, dbg_id(), _kernel_sp);
+
   assert (state(false) == Thread_invalid);
 
   inc_ref();

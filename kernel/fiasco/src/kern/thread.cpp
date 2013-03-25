@@ -315,7 +315,7 @@ Thread::Thread(Context_mode_kernel)
 PUBLIC virtual
 Thread::~Thread()		// To be called in locked state.
 {
-
+printf("~Thread(): this = %p, thread id = %lx\n", this, dbg_id());
   unsigned long *init_sp = reinterpret_cast<unsigned long*>
     (reinterpret_cast<unsigned long>(this) + Size - sizeof(Entry_frame));
 
