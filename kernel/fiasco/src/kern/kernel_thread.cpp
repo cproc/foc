@@ -127,6 +127,7 @@ PUBLIC inline NEEDS["processor.h"]
 void
 Kernel_thread::idle_op()
 {
+	printf("idle_op()\n");
   if (Config::hlt_works_ok)
     Proc::halt();			// stop the CPU, waiting for an int
   else
@@ -156,6 +157,7 @@ PUBLIC
 void
 Kernel_thread::idle_op()
 {
+	printf("idle_op() tickless\n");
   // this version must run with disabled IRQs and a wakup must continue directly
   // after the wait for event.
   auto guard = lock_guard(cpu_lock);

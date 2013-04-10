@@ -438,12 +438,16 @@ Thread::handle_timer_interrupt()
   if (!Config::Fine_grained_cputime)
     consume_time(Config::Scheduler_granularity);
 
+printf("Thread::handle_timer_interrupt(): calling Rcu::do_pending_work(%d)\n", _cpu);
   bool resched = Rcu::do_pending_work(_cpu);
+
+printf("Thread::handle_timer_interrupt(): resched = %d\n", resched);
 
   // Check if we need to reschedule due to timeouts or wakeups
   if ((Timeout_q::timeout_queue.cpu(_cpu).do_timeouts() || resched)
       && !Sched_context::rq.current().schedule_in_progress)
     {
+	  printf("Thread::handle_timer_interrupt(): calling schedule()\n");
       schedule();
       assert (timeslice_timeout.cpu(cpu(true))->is_set());	// Coma check
     }
@@ -1103,6 +1107,7 @@ Thread::handle_remote_requests_irq()
   Context *migration_q = 0;
   bool resched = _pending_rqq.current().handle_requests(&migration_q);
 
+printf("Thread::handle_remote_requests_irq(): calling Rcu::do_pending_work(%d)\n", c->cpu());
   resched |= Rcu::do_pending_work(c->cpu());
 
   if (migration_q)

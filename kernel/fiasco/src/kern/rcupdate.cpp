@@ -294,6 +294,7 @@ Rcu_glbl::start_batch()
       _next_pending = 0;
       Mem::mp_wmb();
       ++_current;
+      printf("Rcu_glbl::start_batch(): increased current global batch number to %d\n", _current);
       Mem::mp_mb();
       _cpus = _active_cpus;
     }
@@ -331,10 +332,13 @@ PRIVATE inline NOEXPORT
 void
 Rcu_glbl::cpu_quiet(unsigned cpu)
 {
+	printf("Rcu_glbl::cpu_quiet(): clearing cpu %d\n", cpu);
   _cpus.clear(cpu);
   if (_cpus.empty())
     {
+	  printf("Rcu_glbl::cpu_quiet(): all CPUs clear, quiescent period has ended\n");
       _completed = _current;
+      printf("Rcu_glbl::cpu_quiet(): global _completed is now %d\n", _completed);
       start_batch();
     }
 }
@@ -343,12 +347,15 @@ PRIVATE
 void
 Rcu_data::check_quiescent_state(Rcu_glbl *rgp)
 {
+	printf("Rcu_data::check_quiescent_state(): _q_batch = %d\n", _q_batch);
   if (_q_batch != rgp->_current)
     {
+	  printf("Rcu_data::check_quiescent_state(): _q_batch != rgp->_current, starting new grace period\n");
       // start new grace period
       _pending = 1;
       _q_passed = 0;
       _q_batch = rgp->_current;
+      printf("Rcu_data::check_quiescent_state(): _q_batch increased to %d\n", _q_batch);
       return;
     }
 
@@ -365,8 +372,10 @@ Rcu_data::check_quiescent_state(Rcu_glbl *rgp)
 
   auto guard = lock_guard(rgp->_lock);
 
-  if (EXPECT_TRUE(_q_batch == rgp->_current))
+  if (EXPECT_TRUE(_q_batch == rgp->_current)) {
+	printf("Rcu_data::check_quiescent_state(): quiescent state passed, calling rgp->cpu_quiet()\n");
     rgp->cpu_quiet(_cpu);
+  }
 }
 
 
@@ -425,19 +434,28 @@ Rcu_data::process_callbacks(Rcu_glbl *rgp)
       l->item = 0;
       l->event = Rcu::Rcu_process);
 
-  if (!_c.empty() && rgp->_completed >= _batch)
+  printf("Rcu_data::process_callbacks(): _n.empty() = %d, _c.empty() = %d, _d.empty() = %d, rgp->_completed = %d, CPU-local batch number = %d\n",
+		  _n.empty(), _c.empty(), _d.empty(), rgp->_completed, _batch);
+
+  if (!_c.empty() && rgp->_completed >= _batch) {
+	  printf("Rcu_data::process_callbacks(): calling _d.append(_c)\n");
     _d.append(_c);
+  }
 
   if (!_n.empty() && _c.empty())
     {
 	{
 	  auto guard = lock_guard(cpu_lock);
+	  printf("Rcu_data::process_callbacks(): moving callbacks from _n list to _c list\n");
 	  _c = cxx::move(_n);
 	}
 
       // start the next batch of callbacks
 
       _batch = rgp->_current + 1;
+
+      printf("Rcu_data::process_callbacks(): increased CPU-local batch number to %d\n", _batch);
+
       Mem::mp_rmb();
 
       if (!rgp->_next_pending)
@@ -450,8 +468,14 @@ Rcu_data::process_callbacks(Rcu_glbl *rgp)
     }
 
   check_quiescent_state(rgp);
-  if (!_d.empty())
+
+  printf("Rcu_data::process_callbacks(): check_quiescent_state() returned, _n.empty() = %d, _c.empty() = %d, _d.empty() = %d, rgp->_completed = %d, CPU-local batch number = %d\n",
+		  _n.empty(), _c.empty(), _d.empty(), rgp->_completed, _batch);
+
+  if (!_d.empty()) {
+printf("Rcu_data::process_callbacks(): calling do_batch()\n");
     return do_batch();
+  }
 
   return false;
 }
@@ -534,6 +558,7 @@ Rcu::do_pending_work(unsigned cpu)
   if (pending(cpu))
     {
       inc_q_cnt(cpu);
+printf("Rcu::do_pending_work(): calling process_callbacks(%d)\n", cpu);
       return process_callbacks(cpu);
 #if 0
       Rcu::schedule_callbacks(cpu, Kip::k()->clock + Rcu::Period);

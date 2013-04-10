@@ -1614,6 +1614,7 @@ PRIVATE static
 bool
 Context::rcu_unblock(Rcu_item *i)
 {
+printf("Context::rcu_unblock()\n");
   assert_kdb(cpu_lock.test());
   Context *const c = static_cast<Context*>(i);
   c->state_change_dirty(~Thread_waiting, Thread_ready);
@@ -2037,7 +2038,9 @@ Context::rcu_wait()
 {
   auto gurad = lock_guard(cpu_lock);
   state_change_dirty(~Thread_ready, Thread_waiting);
+  printf("Context::rcu_wait(): adding 'rcu_unblock()' callback to _n list\n");
   Rcu::call(this, &rcu_unblock);
+  printf("Context::rcu_wait(): calling schedule()\n");
   schedule();
 }
 

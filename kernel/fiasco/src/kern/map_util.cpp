@@ -354,6 +354,8 @@ Reap_list::del()
   for (Kobject *reap = _h; reap; reap = reap->_next_to_reap)
     reap->destroy(list());
 
+printf("Reap_list::del(): calling rcu_wait()\n");
+
   current()->rcu_wait();
 
   for (Kobject *reap = _h; reap;)
