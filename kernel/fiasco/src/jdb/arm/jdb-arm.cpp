@@ -251,6 +251,7 @@ PRIVATE static
 void
 Jdb::at_jdb_leave()
 {
+	printf("leave debugger\n");
   Mem_unit::flush_vcache();
 }
 
