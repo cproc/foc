@@ -36,7 +36,7 @@ private:
 
   friend class _foo;
 
-  enum { LIST_UNSORTED, LIST_SORT_PRIO, LIST_SORT_TID, LIST_SORT_SPACE,
+  enum { LIST_UNSORTED, LIST_SORT_PRIO, LIST_SORT_TID, LIST_SORT_SPACE, LIST_SORT_CONSUMED_TIME,
          LIST_SORT_END };
 
 };
@@ -71,7 +71,7 @@ const char*
 Jdb_thread_list::get_mode_str(void)
 {
   static const char * const mode_str[] =
-    { "(unsorted)", "(prio-sorted)", "(tid-sorted)", "(space-sorted)" };
+    { "(unsorted)", "(prio-sorted)", "(tid-sorted)", "(space-sorted)", "(cpu time-sorted)" };
 
   return mode_str[_mode];
 }
@@ -203,6 +203,14 @@ long
 Jdb_thread_list::get_space_dbgid(Thread *t)
 {
   return Kobject_dbg::pointer_to_id(t->space());
+}
+
+// helper function for iter() -- use consumed time as sorting key
+static
+long
+Jdb_thread_list::get_consumed_time(Thread *t)
+{
+  return t->consumed_time();
 }
 
 
@@ -472,6 +480,13 @@ Jdb_thread_list::iter(int count, Thread **t_start,
 
       // fall through
 
+    case LIST_SORT_CONSUMED_TIME:
+      // list threads sorted by consumed time
+      if (!get_key)
+        get_key = get_consumed_time;
+
+      // fall through
+
     case LIST_SORT_TID:
       // list threads sorted by thread id
 	{
@@ -696,6 +711,13 @@ Jdb_thread_list::list_threads_show_thread(Thread *t)
 
   printf("%-6s", to);
 
+  /* consumed time */
+  String_buf<12> time_str;
+  Jdb::write_ll_ns(&time_str, t->consumed_time()*1000, false);
+  time_str.terminate();
+  printf(" %s  ", time_str.begin());
+
+  /* state */
   if (long_output)
     {
       Jdb_thread::print_state_long(t, 47);
@@ -726,7 +748,7 @@ static void
 Jdb_thread_list::show_header()
 {
   Jdb::cursor();
-  printf("%s   id  cpu    name             pr     sp  wait    to%s state\033[m\033[K",
+  printf("%s   id  cpu    name             pr     sp  wait    to%s   cpu time   state\033[m\033[K",
          Jdb::esc_emph, Config::Stack_depth ? "  stack" : "");
 }
 
