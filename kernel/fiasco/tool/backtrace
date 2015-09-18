@@ -6,6 +6,13 @@ use strict;
 my %sym_tab = (new Math::BigInt(0) => "ERRRRRRROR");
 my $sections = "BdDdTtVvWwuU";
 my %sec_tab;
+my %img_tab;
+my %base_tab;
+my %line_tab;
+
+my @sorted_sym_tab_keys;
+my $min_addr;
+my $max_addr;
 
 my %test;
 
@@ -24,31 +31,51 @@ if (!defined $ARGV[0])
   exit 1;
 }
 
-my $nm = 'genode-x86-nm';
-$nm = "$ENV{'SYSTEM_TARGET'}$nm" if defined $ENV{"SYSTEM_TARGET"};
-$nm = 'genode-arm-nm' if !(system("file -L $ARGV[0] | grep -qw ARM") >> 8);
+my $genode_tools_dir = '/usr/local/genode-gcc/bin';
 
-while (@ARGV)
-  {
+my $nm = "${genode_tools_dir}/genode-x86-nm";
+$nm = "${genode_tools_dir}/genode-arm-nm" if !(system("file -L $ARGV[0] | grep -qw ARM") >> 8);
+$nm = "$ENV{'SYSTEM_TARGET'}$nm" if defined $ENV{"SYSTEM_TARGET"};
+
+my $addr2line = "${genode_tools_dir}/genode-x86-addr2line";
+$addr2line = "${genode_tools_dir}/genode-arm-addr2line" if !(system("file -L $ARGV[0] | grep -qw ARM") >> 8);
+$addr2line = "$ENV{'SYSTEM_TARGET'}$addr2line" if defined $ENV{"SYSTEM_TARGET"};
+
+sub scan_image
+{
     my $img = shift;
+    my $base = shift;
+
     foreach my $l (split('\n', qx{$nm $img | c++filt}))
       {
 	if ($l =~ /^([0-9a-fA-F]*)\s+([$sections])\s+(.*)$/)
 	  {
-	    my ($addr, $sec, $sym) = (new Math::BigInt("0x$1"), $2, $3);
+	    my ($addr, $sec, $sym) = ($base + new Math::BigInt("0x$1"), $2, $3);
 	    if (defined $addr && ref $addr && !$addr->is_nan())
 	      {
+		$img_tab{as_hex($addr)} = $img;
+		$base_tab{as_hex($addr)} = $base;
 		$sym_tab{as_hex($addr)} = $sym;
 		$sec_tab{as_hex($addr)} = $sec;
 	      }
 	  }
       }
-  }
-my @sorted_sym_tab_keys = sort keys %sym_tab;
-my $min_addr = $sorted_sym_tab_keys[0];
-my $max_addr = $sorted_sym_tab_keys[@sorted_sym_tab_keys - 1];
 
-print "Scanning image done, proceed.\n";
+	@sorted_sym_tab_keys = sort keys %sym_tab;
+	$min_addr = $sorted_sym_tab_keys[0];
+	$max_addr = $sorted_sym_tab_keys[@sorted_sym_tab_keys - 1];
+
+	$img =~ s/.*\/(.*)/$1/;
+	print "Scanned image \'$img\'\n";
+}
+
+while (@ARGV)
+{
+	my $img = shift;
+	scan_image($img, new Math::BigInt("0x0"));
+}
+
+#print "Scanning image done, proceed.\n";
 
 sub find_sym($)
 {
@@ -78,11 +105,23 @@ sub print_func($)
   my $offset = $addr-$hit;
   my $o = $hit->as_hex();
 
-  return unless $hit;
+  if ($hit) {
+      my $img = $img_tab{as_hex($hit)};
+      my $img_name = $img;
+      $img_name =~ s/.*\/(.*)/$1/;
+      my $local_addr = $addr - $base_tab{as_hex($hit)};
+      my $local_hit = $hit - $base_tab{as_hex($hit)};
+      my $local_addr_as_hex = $local_addr->as_hex();
+      my $line = qx{$addr2line -e $img $local_addr_as_hex};
 
-  printf " %s %30s(%s) + %6s = %s\n",
-	 $addr->as_hex(), $sym_tab{as_hex($hit)}, $sec_tab{as_hex($hit)},
-	 $offset->as_hex(), $hit->as_hex();
+  	  printf " %18s %18s  %-30s  %s(%s) + %6s = %s\n",
+	 	 $addr->as_hex(), $local_addr->as_hex(), $img_name, $sym_tab{as_hex($hit)}, $sec_tab{as_hex($hit)},
+	 	 $offset->as_hex(), $local_hit->as_hex();
+	  printf "                                                                                                      in file %s", $line;
+  } else {
+	  printf " %18s                  ?\n",
+	     $addr->as_hex();
+  }
 }
 
 
@@ -92,18 +131,19 @@ while (<>)
   if (/^\s+#(\d+)\s+([0-9a-f]+)\s+([0-9a-f]+)/i) # fiasco bt without debuginfo
   {
     my $fn = $1;
-    my $stack = new Math::BigInt("0x$2");
+    #my $stack = new Math::BigInt("0x$2");
     my $addr = $3;
-    my $fsize = $stack - $last_f;
+    #my $fsize = $stack - $last_f;
 
-    $last_f = $stack;
-    printf "%2d %s ", $fn, $stack->as_hex();
-    if ($fsize >= 0 && $fsize <= 2000)
-    {
-      printf "%4d", $fsize;
-    } else {
-      printf "....";
-    }
+    #$last_f = $stack;
+    #printf "%2d %s ", $fn, $stack->as_hex();
+    #if ($fsize >= 0 && $fsize <= 2000)
+    #{
+    #  printf "%4d", $fsize;
+    #} else {
+    #  printf "....";
+    #}
+    printf "%2d", $fn;
     print_func($addr);
   }
   elsif (/^(?:.*?\|)?\s*(0x)?([0-9a-f]+)\s*$/i) # simple figure
@@ -130,5 +170,26 @@ while (<>)
 	print " 0x$val  ... value ...\n";
       }
     }
+  }
+  elsif (/^\[.*\]   0x([0-9a-f]*).*?: (.*)/) # Genode shared library info
+  {
+	my $base = new Math::BigInt("0x$1");
+	my $img = $2;
+
+	# ignore non-zero base address in 'ld.lib.so'
+	if ($img eq 'ld.lib.so') {
+		$base = 0;
+	}
+
+	# ignore 'stack area'
+	if ($img eq 'stack area') {
+		next;
+	}
+
+	scan_image($img, $base);
+  }
+  elsif (/^\[.*] 0x([0-9a-f]+)/) # Genode backtrace
+  {
+	print_func($1);
   }
 }
