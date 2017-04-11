@@ -197,9 +197,14 @@ $(od)bootstrap_$(ENTRY_FN).uimage: $(od)bootstrap.uimage
    BID_POST_PROG_LINK_MSG_$(BOOTSTRAP_ELF_NAME) = echo -e "  ==> Post-processing $@"
    BID_POST_PROG_LINK_$(BOOTSTRAP_ELF_NAME)     = \
       $(VERBOSE)LANG=C $(NM) -C $@ | \
-        LANG=C $(GREP) -q "V vtable for Platform_base" || \
-           { echo -e "\nERROR: Missing at least one platform instantiation.\n"; \
-             exit 1; } ; $(if $(BOOTSTRAP_NO_STRIP),,$(STRIP) $@)
+        LANG=C $(GREP) -E ' D __PLATFORMS_(BEGIN|END)$$' | \
+          (read a i; read b i; \
+           if [ "$$a" = "$$b" ]; then \
+             echo -e "\nERROR: Missing at least one platform instantiation.\n"; \
+             $(RM) $@; \
+             exit 1; \
+           fi ) || exit 1; \
+           $(if $(BOOTSTRAP_NO_STRIP),,$(STRIP) $@)
 
    ifneq ($(BOOTSTRAP_DO_RAW_IMAGE)$(BOOTSTRAP_DO_UIMAGE),)
      BOOTSTRAP_RAW      := $(od)bootstrap.raw
