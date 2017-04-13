@@ -49,6 +49,7 @@ l4_ipc_call(l4_cap_idx_t dest, l4_utcb_t *u,
      "c" (timeout),
      "d" (dest | L4_SYSF_CALL),
      "a" (snd_tag.raw)
+     L4S_PIC_SYSCALL
      :
      "memory", "cc" L4S_PIC_CLOBBER
      );
@@ -79,6 +80,7 @@ l4_ipc_reply_and_wait(l4_utcb_t *u, l4_msgtag_t tag,
      "c" (timeout),
      "a" (tag.raw),
      "d" (L4_INVALID_CAP | L4_SYSF_REPLY_AND_WAIT)
+     L4S_PIC_SYSCALL
      :
      "memory", "cc" L4S_PIC_CLOBBER
      );
@@ -110,6 +112,7 @@ l4_ipc_send_and_wait(l4_cap_idx_t dest, l4_utcb_t *u,
      "c" (timeout),
      "a" (tag.raw),
      "d" (dest | L4_SYSF_SEND_AND_WAIT)
+     L4S_PIC_SYSCALL
      :
      "memory", "cc" L4S_PIC_CLOBBER
      );
@@ -140,6 +143,7 @@ l4_ipc_send(l4_cap_idx_t dest, l4_utcb_t *u,
      "c" (timeout),
      "d" (dest | L4_SYSF_SEND),
      "a" (tag.raw)
+     L4S_PIC_SYSCALL
      : "memory", "cc" L4S_PIC_CLOBBER
      );
   return rtag;
@@ -168,6 +172,7 @@ l4_ipc_wait(l4_utcb_t *u, l4_umword_t *label,
      "d" (L4_INVALID_CAP | L4_SYSF_WAIT),
      "a" (0),
      "S" (0)
+     L4S_PIC_SYSCALL
      : "memory", "cc"  L4S_PIC_CLOBBER
      );
   return rtag;
@@ -229,6 +234,7 @@ l4_ipc_receive(l4_cap_idx_t rcv, l4_utcb_t *u,
      "S" (0),
      "a" (0),
      "d" (rcv | L4_SYSF_RECV)
+     L4S_PIC_SYSCALL
      : "memory", "cc"  L4S_PIC_CLOBBER
      );
   return rtag;
@@ -260,6 +266,7 @@ l4_ipc(l4_cap_idx_t dest, l4_utcb_t *u,
      "c" (timeout),
      "a" (tag.raw),
      "d" (dest | flags)
+     L4S_PIC_SYSCALL
      :
      "memory", "cc" L4S_PIC_CLOBBER
      );
