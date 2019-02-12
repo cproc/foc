@@ -190,8 +190,13 @@ PUBLIC static FIASCO_INIT_CPU
 void
 Perf_cnt::init_cpu()
 {
-  if (!is_avail())
-    return;
+  /*
+   * QEMU implements the cycle count register read by
+   * 'Genode::Trace::timestamp()', but does not report a supported debug model
+   * version for Cortex-A9.
+   */
+  //if (!is_avail())
+    //return;
 
   _nr_counters = (pmcr() >> 11) & 0x1f;
 
